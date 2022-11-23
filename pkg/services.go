@@ -616,6 +616,7 @@ var (
 								Region:    region,
 							}
 							resource.Tags = append(resource.Tags, Tag{Key: "alias", Value: *ws.Alias})
+							resource.Tags = append(resource.Tags, Tag{Key: "ResourceId", Value: *ws.WorkspaceId})
 							for key, value := range ws.Tags {
 								resource.Tags = append(resource.Tags, Tag{Key: key, Value: *value})
 							}
