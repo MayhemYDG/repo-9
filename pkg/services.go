@@ -615,7 +615,7 @@ var (
 								Namespace: job.Type,
 								Region:    region,
 							}
-							resource.Tags = append(resource.Tags, Tag{Key: "name", Value: *ws.Alias + "-" + *ws.WorkspaceId})
+							resource.Tags = append(resource.Tags, Tag{Key: "alias", Value: *ws.Alias})
 							for key, value := range ws.Tags {
 								resource.Tags = append(resource.Tags, Tag{Key: key, Value: *value})
 							}
