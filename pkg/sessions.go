@@ -117,8 +117,8 @@ func NewSessionCache(config ScrapeConf, fips bool, logger Logger) SessionCache {
 		}
 	}
 
-	for _, customMetricJob := range config.CustomMetrics {
-		for _, role := range customMetricJob.Roles {
+	for _, customNamespaceJob := range config.CustomNamespace {
+		for _, role := range customNamespaceJob.Roles {
 			if _, ok := stscache[role]; !ok {
 				stscache[role] = nil
 			}
@@ -127,7 +127,7 @@ func NewSessionCache(config ScrapeConf, fips bool, logger Logger) SessionCache {
 				roleCache[role] = map[string]*clientCache{}
 			}
 
-			for _, region := range customMetricJob.Regions {
+			for _, region := range customNamespaceJob.Regions {
 				// Only write a new region in if the region does not exist
 				if _, ok := roleCache[role][region]; !ok {
 					roleCache[role][region] = &clientCache{
@@ -308,7 +308,6 @@ func (s *sessionCache) GetPrometheus(region *string, role Role) prometheusservic
 	}
 
 	s.clients[role][*region].prometheus = createPrometheusSession(s.session, region, role, s.fips, s.logger.IsDebugEnabled())
-	fmt.Println("Created Prometheus client")
 	return s.clients[role][*region].prometheus
 }
 
@@ -500,7 +499,6 @@ func createEC2Session(sess *session.Session, region *string, role Role, fips boo
 }
 
 func createPrometheusSession(sess *session.Session, region *string, role Role, fips bool, isDebugEnabled bool) prometheusserviceiface.PrometheusServiceAPI {
-	fmt.Println("Creating prometheus sessions")
 	maxPrometheusAPIRetries := 10
 	config := &aws.Config{Region: region, MaxRetries: &maxPrometheusAPIRetries}
 	if fips {

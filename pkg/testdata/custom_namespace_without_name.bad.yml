@@ -1,7 +1,7 @@
 apiVersion: v1alpha1
 sts-endpoint: eu-west-1
-customMetrics:
-  - name: customMetrics
+customNamespace:
+  - namespace: CustomEC2Metrics
     regions:
       - us-east-1
     metrics:

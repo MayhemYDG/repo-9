@@ -2,7 +2,9 @@ package exporter
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"math/rand"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -100,13 +102,13 @@ func scrapeAwsData(
 		}
 	}
 
-	for _, customMetricJob := range config.CustomMetrics {
-		for _, role := range customMetricJob.Roles {
-			for _, region := range customMetricJob.Regions {
+	for _, customNamespaceJob := range config.CustomNamespace {
+		for _, role := range customNamespaceJob.Roles {
+			for _, region := range customNamespaceJob.Regions {
 				wg.Add(1)
-				go func(staticJob *CustomMetrics, region string, role Role) {
+				go func(staticJob *CustomNamespace, region string, role Role) {
 					defer wg.Done()
-					jobLogger := logger.With("custom_metric_namespace", customMetricJob.Namespace, "region", region, "arn", role.RoleArn)
+					jobLogger := logger.With("custom_metric_namespace", customNamespaceJob.Namespace, "region", region, "arn", role.RoleArn)
 					result, err := cache.GetSTS(role).GetCallerIdentityWithContext(ctx, &sts.GetCallerIdentityInput{})
 					if err != nil || result.Account == nil {
 						jobLogger.Error(err, "Couldn't get account Id")
@@ -119,12 +121,22 @@ func scrapeAwsData(
 						logger: jobLogger,
 					}
 
-					metrics := scrapeCustomMetricJobUsingMetricData(ctx, customMetricJob, config.Discovery.ExportedTagsOnMetrics, region, result.Account, clientCloudwatch, cloudwatchSemaphore, tagSemaphore, jobLogger, metricsPerQuery)
+					metrics := scrapeCustomNamespaceJobUsingMetricData(
+						ctx,
+						customNamespaceJob,
+						region,
+						result.Account,
+						clientCloudwatch,
+						cloudwatchSemaphore,
+						tagSemaphore,
+						jobLogger,
+						metricsPerQuery,
+					)
 
 					mux.Lock()
 					cwData = append(cwData, metrics...)
 					mux.Unlock()
-				}(customMetricJob, region, role)
+				}(customNamespaceJob, region, role)
 			}
 		}
 	}
@@ -177,67 +189,6 @@ func scrapeStaticJob(ctx context.Context, resource *Static, region string, accou
 			}
 		}()
 	}
-	wg.Wait()
-	return cw
-}
-
-func scrapeCustomMetricJob(ctx context.Context, resource *CustomMetrics, region string, accountId *string, clientCloudwatch cloudwatchInterface, cloudwatchSemaphore chan struct{}, logger Logger) (cw []*cloudwatchData) {
-	mux := &sync.Mutex{}
-	var wg sync.WaitGroup
-
-	for j := range resource.Metrics {
-		metric := resource.Metrics[j]
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			cloudwatchSemaphore <- struct{}{}
-			defer func() {
-				<-cloudwatchSemaphore
-			}()
-
-			logger.Debug("Custom Metric Info", resource.Name, resource.Namespace)
-			metricsList, err := getFullMetricsList(ctx, resource.Namespace, metric, clientCloudwatch)
-
-			if err != nil {
-				logger.Error(err, "Error trying to get metric list")
-				return
-			}
-
-			for _, cloudWatchMetric := range metricsList.Metrics {
-				logger.Debug("Searching for datapoints", cloudWatchMetric.MetricName, cloudWatchMetric.Dimensions)
-
-				filter := createGetMetricStatisticsInput(
-					cloudWatchMetric.Dimensions,
-					&resource.Namespace,
-					metric,
-					logger,
-				)
-
-				data := cloudwatchData{
-					ID:                     &resource.Name,
-					Metric:                 &metric.Name,
-					Namespace:              &resource.Namespace,
-					Statistics:             metric.Statistics,
-					NilToZero:              metric.NilToZero,
-					AddCloudwatchTimestamp: metric.AddCloudwatchTimestamp,
-					Region:                 &region,
-					AccountId:              accountId,
-					Points:                 clientCloudwatch.get(ctx, filter),
-					Dimensions:             cloudWatchMetric.Dimensions,
-				}
-
-				logger.Debug("Datapoing info", data.Metric, data.Namespace, data.Dimensions, data.Points)
-
-				if data.Points != nil {
-					mux.Lock()
-					cw = append(cw, &data)
-					mux.Unlock()
-				}
-			}
-		}()
-	}
-
 	wg.Wait()
 	return cw
 }
@@ -367,10 +318,10 @@ func scrapeDiscoveryJobUsingMetricData(
 	return resources, cw
 }
 
-func scrapeCustomMetricJobUsingMetricData(
+
+func scrapeCustomNamespaceJobUsingMetricData(
 	ctx context.Context,
-	customMetricsJob *CustomMetrics,
-	tagsOnMetrics exportedTagsOnMetrics,
+	customNamespaceJob *CustomNamespace,
 	region string,
 	accountId *string,
 	clientCloudwatch cloudwatchInterface,
@@ -381,7 +332,8 @@ func scrapeCustomMetricJobUsingMetricData(
 	mux := &sync.Mutex{}
 	var wg sync.WaitGroup
 
-	getMetricDatas := getMetricDataForQueriesToFetchCustomMetrics(ctx, customMetricsJob, region, accountId, tagsOnMetrics, clientCloudwatch, tagSemaphore, logger)
+	getMetricDatas := getMetricDataForQueriesForCustomNamespace(ctx, customNamespaceJob, region, accountId, clientCloudwatch, tagSemaphore, logger)
+
 	metricDataLength := len(getMetricDatas)
 	if metricDataLength == 0 {
 		logger.Debug("No metrics data found")
@@ -407,7 +359,9 @@ func scrapeCustomMetricJobUsingMetricData(
 				end = metricDataLength
 			}
 			input := getMetricDatas[i:end]
-			filter := createGetMetricDataInput(input, &customMetricsJob.Namespace, customMetricsJob.Length, customMetricsJob.Delay, customMetricsJob.RoundingPeriod, logger)
+
+			filter := createGetMetricDataInput(input, &customNamespaceJob.Namespace, customNamespaceJob.Length, customNamespaceJob.Delay, customNamespaceJob.RoundingPeriod, logger)
+
 			data := clientCloudwatch.getMetricData(ctx, filter)
 			if data != nil {
 				output := make([]*cloudwatchData, 0)
@@ -432,47 +386,55 @@ func scrapeCustomMetricJobUsingMetricData(
 	return cw
 }
 
-func getMetricDataForQueriesToFetchCustomMetrics(
+func getMetricDataForQueriesForCustomNamespace(
 	ctx context.Context,
-	customMetricJob *CustomMetrics,
+	customNamespaceJob *CustomNamespace,
 	region string,
 	accountId *string,
-	tagsOnMetrics exportedTagsOnMetrics,
+
 	clientCloudwatch cloudwatchInterface,
 	tagSemaphore chan struct{},
 	logger Logger) []cloudwatchData {
 	var getMetricDatas []cloudwatchData
 
 	// For every metric of the job
-	for _, metric := range customMetricJob.Metrics {
+	for _, metric := range customNamespaceJob.Metrics {
 		// Get the full list of metrics
 		// This includes, for this metric the possible combinations
 		// of dimensions and value of dimensions with data
 		tagSemaphore <- struct{}{}
 
-		metricsList, err := getFullMetricsList(ctx, customMetricJob.Namespace, metric, clientCloudwatch)
+		metricsList, err := getFullMetricsList(ctx, customNamespaceJob.Namespace, metric, clientCloudwatch)
 		<-tagSemaphore
 
 		if err != nil {
-			logger.Error(err, "Failed to get full metric list", "metric_name", metric.Name, "namespace", customMetricJob.Namespace)
+			logger.Error(err, "Failed to get full metric list", "metric_name", metric.Name, "namespace", customNamespaceJob.Namespace)
 			continue
 		}
 
-		getMetricDatas = append(getMetricDatas, getFilteredMetricDatas(
-			region,
-			accountId,
-			customMetricJob.Namespace,
-			customMetricJob.CustomTags,
-			tagsOnMetrics,
-			// we are not filtering by dimensions for custom metrics
-			[]*string{},
-			// resource tags are not supported for custom metrics
-			[]*taggedResource{},
-			metricsList.Metrics,
-			customMetricJob.DimensionNameRequirements,
-			customMetricJob.SupportUntagged,
-			metric,
-		)...)
+		for _, cwMetric := range metricsList.Metrics {
+			if len(customNamespaceJob.DimensionNameRequirements) > 0 && !metricDimensionsMatchNames(cwMetric, customNamespaceJob.DimensionNameRequirements) {
+				continue
+			}
+
+			for _, stats := range metric.Statistics {
+				id := fmt.Sprintf("id_%d", rand.Int())
+				getMetricDatas = append(getMetricDatas, cloudwatchData{
+					ID:                     &customNamespaceJob.Name,
+					MetricID:               &id,
+					Metric:                 &metric.Name,
+					Namespace:              &customNamespaceJob.Namespace,
+					Statistics:             []string{stats},
+					NilToZero:              metric.NilToZero,
+					AddCloudwatchTimestamp: metric.AddCloudwatchTimestamp,
+					CustomTags:             customNamespaceJob.CustomTags,
+					Dimensions:             cwMetric.Dimensions,
+					Region:                 &region,
+					AccountId:              accountId,
+					Period:                 metric.Period,
+				})
+			}
+		}
 	}
 	return getMetricDatas
 }

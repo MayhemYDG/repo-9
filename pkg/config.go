@@ -14,11 +14,11 @@ const defaultLengthSeconds = int64(300)
 const defaultDelaySeconds = int64(300)
 
 type ScrapeConf struct {
-	ApiVersion    string           `yaml:"apiVersion"`
-	StsRegion     string           `yaml:"sts-region"`
-	Discovery     Discovery        `yaml:"discovery"`
-	Static        []*Static        `yaml:"static"`
-	CustomMetrics []*CustomMetrics `yaml:"customMetrics"`
+	ApiVersion      string             `yaml:"apiVersion"`
+	StsRegion       string             `yaml:"sts-region"`
+	Discovery       Discovery          `yaml:"discovery"`
+	Static          []*Static          `yaml:"static"`
+	CustomNamespace []*CustomNamespace `yaml:"customNamespace"`
 }
 
 type Discovery struct {
@@ -56,7 +56,7 @@ type Static struct {
 	Metrics    []*Metric   `yaml:"metrics"`
 }
 
-type CustomMetrics struct {
+type CustomNamespace struct {
 	Regions                   []string  `yaml:"regions"`
 	Name                      string    `yaml:"name"`
 	Namespace                 string    `yaml:"namespace"`
@@ -115,7 +115,7 @@ func (c *ScrapeConf) Load(file *string) error {
 		}
 	}
 
-	for _, job := range c.CustomMetrics {
+	for _, job := range c.CustomNamespace {
 		if len(job.Roles) == 0 {
 			job.Roles = []Role{{}} // use current IAM role
 		}
@@ -134,16 +134,9 @@ func (c *ScrapeConf) Load(file *string) error {
 	return nil
 }
 
-func (c *ScrapeConf) IsConfigFileEmpty() bool {
-	if c.Discovery.Jobs == nil && c.Static == nil && c.CustomMetrics == nil {
-		return true
-	}
-	return false
-}
-
 func (c *ScrapeConf) Validate() error {
-	if c.IsConfigFileEmpty() {
-		return fmt.Errorf("At least 1 Discovery job, 1 Static or one CustomMetric must be defined")
+	if c.Discovery.Jobs == nil && c.Static == nil && c.CustomNamespace == nil {
+		return fmt.Errorf("At least 1 Discovery job, 1 Static or one CustomNamespace must be defined")
 	}
 
 	if c.Discovery.Jobs != nil {
@@ -155,9 +148,9 @@ func (c *ScrapeConf) Validate() error {
 		}
 	}
 
-	if c.CustomMetrics != nil {
-		for idx, job := range c.CustomMetrics {
-			err := job.validateCustomMetricJob(idx)
+	if c.CustomNamespace != nil {
+		for idx, job := range c.CustomNamespace {
+			err := job.validateCustomNamespaceJob(idx)
 			if err != nil {
 				return err
 			}
@@ -211,14 +204,14 @@ func (j *Job) validateDiscoveryJob(jobIdx int) error {
 	return nil
 }
 
-func (j *CustomMetrics) validateCustomMetricJob(jobIdx int) error {
+func (j *CustomNamespace) validateCustomNamespaceJob(jobIdx int) error {
 	if j.Name == "" {
-		return fmt.Errorf("CustomMetrics job [%v]: Name should not be empty", jobIdx)
+		return fmt.Errorf("CustomNamespace job [%v]: Name should not be empty", jobIdx)
 	}
 	if j.Namespace == "" {
-		return fmt.Errorf("CustomMetrics job [%v]: Namespace should not be empty", jobIdx)
+		return fmt.Errorf("CustomNamespace job [%v]: Namespace should not be empty", jobIdx)
 	}
-	parent := fmt.Sprintf("CustomMetrics job [%s/%d]", j.Namespace, jobIdx)
+	parent := fmt.Sprintf("CustomNamespace job [%s/%d]", j.Namespace, jobIdx)
 	if len(j.Roles) > 0 {
 		for roleIdx, role := range j.Roles {
 			if err := role.validateRole(roleIdx, parent); err != nil {
@@ -227,7 +220,7 @@ func (j *CustomMetrics) validateCustomMetricJob(jobIdx int) error {
 		}
 	}
 	if j.Regions == nil || len(j.Regions) == 0 {
-		return fmt.Errorf("CustomMetrics job [%s/%d]: Regions should not be empty", j.Name, jobIdx)
+		return fmt.Errorf("CustomNamespace job [%s/%d]: Regions should not be empty", j.Name, jobIdx)
 	}
 	for metricIdx, metric := range j.Metrics {
 		if metric.AddCloudwatchTimestamp == nil {
