@@ -257,7 +257,7 @@ jobs:
         go-version: 1
     - continue-on-error: true
       name: Check out code into the Go module directory
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - continue-on-error: true
       name: Test suite
       run: 'go version
