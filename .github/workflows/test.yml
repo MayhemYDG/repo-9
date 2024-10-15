@@ -534,7 +534,7 @@ jobs:
           '
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ github.sha }}-aa
     - continue-on-error: true
@@ -820,7 +820,7 @@ jobs:
           '
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ github.sha }}-ab
     - continue-on-error: true
@@ -1106,7 +1106,7 @@ jobs:
           '
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ github.sha }}-ac
     - continue-on-error: true
@@ -1392,7 +1392,7 @@ jobs:
           '
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ github.sha }}-ad
     - continue-on-error: true
