@@ -498,7 +498,7 @@ jobs:
       uses: actions/checkout@v2
     - continue-on-error: true
       name: Use Node.js
-      uses: actions/setup-node@v2.1.5
+      uses: actions/setup-node@v4.0.4
       with:
         node-version: 12.x
     - continue-on-error: true
