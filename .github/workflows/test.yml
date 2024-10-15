@@ -554,7 +554,7 @@ jobs:
         done\n"
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: true
         file: ./coverage.txt
@@ -840,7 +840,7 @@ jobs:
         done\n"
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: true
         file: ./coverage.txt
@@ -1126,7 +1126,7 @@ jobs:
         done\n"
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: true
         file: ./coverage.txt
@@ -1412,7 +1412,7 @@ jobs:
         done\n"
     - continue-on-error: true
       if: env.GIT_DIFF != ''
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: true
         file: ./coverage.txt
