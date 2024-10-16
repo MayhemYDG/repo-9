@@ -10972,13 +10972,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"klona@npm:^2.0.4":
-  version: 2.0.6
-  resolution: "klona@npm:2.0.6"
-  checksum: ac9ee3732e42b96feb67faae4d27cf49494e8a3bf3fa7115ce242fe04786788e0aff4741a07a45a2462e2079aa983d73d38519c85d65b70ef11447bbc3c58ce7
-  languageName: node
-  linkType: hard
-
 "labeled-stream-splicer@npm:^2.0.0":
   version: 2.0.2
   resolution: "labeled-stream-splicer@npm:2.0.2"
@@ -14862,7 +14855,7 @@ __metadata:
     react-window: ^1.8.5
     resize-observer-polyfill: ^1.5.1
     sass: ^1.24.4
-    sass-loader: ^11.0.0
+    sass-loader: ^16.0.2
     sass-resources-loader: ^2.2.1
     shim-loader: ^1.0.1
     snapsvg-cjs: ^0.0.6
@@ -14946,25 +14939,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sass-loader@npm:^11.0.0":
-  version: 11.1.1
-  resolution: "sass-loader@npm:11.1.1"
+"sass-loader@npm:^16.0.2":
+  version: 16.0.2
+  resolution: "sass-loader@npm:16.0.2"
   dependencies:
-    klona: ^2.0.4
     neo-async: ^2.6.2
   peerDependencies:
-    fibers: ">= 3.1.0"
-    node-sass: ^4.0.0 || ^5.0.0 || ^6.0.0
+    "@rspack/core": 0.x || 1.x
+    node-sass: ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0 || ^9.0.0
     sass: ^1.3.0
+    sass-embedded: "*"
     webpack: ^5.0.0
   peerDependenciesMeta:
-    fibers:
+    "@rspack/core":
       optional: true
     node-sass:
       optional: true
     sass:
       optional: true
-  checksum: e969351003cfb2db09fea9100d6075cd4a188b04596e0c950dbd3b3367635d25f474ce06a15fb2b4e85e29f115ace49eaa3e0d4a1ab1c096f12c598b048b2963
+    sass-embedded:
+      optional: true
+    webpack:
+      optional: true
+  checksum: 233afba0b1cfa7af9221cd5e93a10706750fba2c7c86937f6a9c0a89effc10e44900a164b270f72b10a543b0b8988df0036c23c66a4df01f5013bd4907f37e49
   languageName: node
   linkType: hard
 
