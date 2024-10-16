@@ -17,6 +17,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ImageNotFoundError is used when the OCI structure, in principle, exists and seems valid enough,
+// but nothing matches the “image” part of the provided reference.
+type ImageNotFoundError struct {
+	ref ociArchiveReference
+	// We may make members public, or add methods, in the future.
+}
+
+func (e ImageNotFoundError) Error() string {
+	return fmt.Sprintf("no descriptor found for reference %q", e.ref.image)
+}
+
+// ArchiveFileNotFoundError occurs when the archive file does not exist.
+type ArchiveFileNotFoundError struct {
+	// ref is the image reference
+	ref ociArchiveReference
+	// path is the file path that was not present
+	path string
+}
+
+func (e ArchiveFileNotFoundError) Error() string {
+	return fmt.Sprintf("archive file not found: %q", e.path)
+}
+
 type ociArchiveImageSource struct {
 	impl.Compat
 
@@ -35,6 +58,10 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref ociArchiv
 
 	unpackedSrc, err := tempDirRef.ociRefExtracted.NewImageSource(ctx, sys)
 	if err != nil {
+		var notFound ocilayout.ImageNotFoundError
+		if errors.As(err, &notFound) {
+			err = ImageNotFoundError{ref: ref}
+		}
 		if err := tempDirRef.deleteTempDir(); err != nil {
 			return nil, fmt.Errorf("deleting temp directory %q: %w", tempDirRef.tempDirectory, err)
 		}
@@ -122,6 +149,8 @@ func (s *ociArchiveImageSource) SupportsGetBlobAt() bool {
 // The specified chunks must be not overlapping and sorted by their offset.
 // The readers must be fully consumed, in the order they are returned, before blocking
 // to read the next chunk.
+// If the Length for the last chunk is set to math.MaxUint64, then it
+// fully fetches the remaining data from the offset to the end of the blob.
 func (s *ociArchiveImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, chunks []private.ImageSourceChunk) (chan io.ReadCloser, chan error, error) {
 	return s.unpackedSrc.GetBlobAt(ctx, info, chunks)
 }
