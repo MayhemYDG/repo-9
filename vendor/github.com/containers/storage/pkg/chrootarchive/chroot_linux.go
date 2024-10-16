@@ -2,7 +2,6 @@ package chrootarchive
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -20,8 +19,11 @@ import (
 // Old root is removed after the call to pivot_root so it is no longer available under the new root.
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
-	caps, err := capability.NewPid(0)
+	caps, err := capability.NewPid2(0)
 	if err != nil {
+		return err
+	}
+	if err := caps.Load(); err != nil {
 		return err
 	}
 
@@ -51,7 +53,7 @@ func chroot(path string) (err error) {
 	}
 
 	// setup oldRoot for pivot_root
-	pivotDir, err := ioutil.TempDir(path, ".pivot_root")
+	pivotDir, err := os.MkdirTemp(path, ".pivot_root")
 	if err != nil {
 		return fmt.Errorf("setting up pivot dir: %w", err)
 	}

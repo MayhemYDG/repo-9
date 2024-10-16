@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,7 +15,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/system"
-	"github.com/opencontainers/runc/libcontainer/userns"
+	"github.com/containers/storage/pkg/unshare"
 )
 
 type applyLayerResponse struct {
@@ -27,7 +26,6 @@ type applyLayerResponse struct {
 // used on Windows as it does not support chroot, hence no point sandboxing
 // through chroot and rexec.
 func applyLayer() {
-
 	var (
 		tmpDir  string
 		err     error
@@ -36,17 +34,19 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	inUserns := userns.RunningInUserNS()
+	inUserns := unshare.IsRootless()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
 
 	// We need to be able to set any perms
-	oldmask, err := system.Umask(0)
-	defer system.Umask(oldmask)
+	oldMask, err := system.Umask(0)
 	if err != nil {
 		fatal(err)
 	}
+	defer func() {
+		_, _ = system.Umask(oldMask) // Ignore err. This can only fail with ErrNotSupportedPlatform, in which case we would have failed above.
+	}()
 
 	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
 		fatal(err)
@@ -56,7 +56,7 @@ func applyLayer() {
 		options.InUserNS = true
 	}
 
-	if tmpDir, err = ioutil.TempDir("/", "temp-storage-extract"); err != nil {
+	if tmpDir, err = os.MkdirTemp("/", "temp-storage-extract"); err != nil {
 		fatal(err)
 	}
 
@@ -95,7 +95,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if userns.RunningInUserNS() {
+		if unshare.IsRootless() {
 			options.InUserNS = true
 		}
 	}
@@ -110,7 +110,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 
 	cmd := reexec.Command("storage-applyLayer", dest)
 	cmd.Stdin = layer
-	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("OPT=%s", data))
 
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf
