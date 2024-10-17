@@ -65,7 +65,7 @@ require (
 	golang.org/x/oauth2 v0.5.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.110.0
-	gopkg.in/ns1/ns1-go.v2 v2.7.4
+	gopkg.in/ns1/ns1-go.v2 v2.12.1
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/api v0.0.0-20210128181506-0c4b8e54850f
 	istio.io/client-go v0.0.0-20210128182905-ee2edd059e02
