@@ -262,7 +262,7 @@ jobs:
     - continue-on-error: true
       uses: gradle/wrapper-validation-action@v1
     - continue-on-error: true
-      uses: stefanzweifel/git-auto-commit-action@v4
+      uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_author: micronaut-build <${{ secrets.MICRONAUT_BUILD_EMAIL }}>
         commit_message: Upgrade Gradle Wrapper to ${{ steps.update.outputs.latest_version
